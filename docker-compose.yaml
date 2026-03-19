@@ -1,29 +1,48 @@
 services:
-  frontend:
-    build: ./Frontend
+  gateway:
+    build: ./Gateway
     ports:
-      - "3000:3000"
-    environment:
-      - PORT=3000
+      - "8080:80"
+    networks:
+      - frontend-net
+      - backend-net
+    depends_on:
+      - frontend
+      - api
     restart: unless-stopped
 
-  backend:
+  frontend:
+    build: ./Frontend
+    networks:
+      - frontend-net
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  api:
     build: ./Backend
-    ports:
-      - "3001:3001"
+    networks:
+      - backend-net
+      - broker-net
+    expose:
+      - "8000"
     environment:
-      - PORT=3001
       - DATABASE_URL=postgresql://postgres:postgres@database:5432/benchmark
       - JWT_SECRET=hello_blobi_blobo
-      - KAFKA_BROKERS=kafka:9092
-      - KAFKA_CLIENT_ID=auth-service
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
-      - database
-      - kafka
+      database:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
 
   database:
     image: postgres:15-alpine
+    networks:
+      - backend-net
+    expose:
+      - "5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -31,26 +50,95 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./Database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d benchmark"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    networks:
+      - broker-net
+    expose:
+      - "2181"
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
     restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    ports:
-      - "9092:9092"
+    networks:
+      - broker-net
+    expose:
+      - "9092"
     environment:
       - KAFKA_BROKER_ID=1
       - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
     depends_on:
       - zookeeper
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.1
+  trainer-pytorch:
+    build:
+      context: ./Trainer
+      dockerfile: Dockerfile.pytorch
+    networks:
+      - broker-net
+    volumes:
+      - datasets:/data:ro
     environment:
-      - ZOOKEEPER_CLIENT_PORT=2181
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - TRAINER_NAME=pytorch
+    depends_on:
+      kafka:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
     restart: unless-stopped
+
+  trainer-tensorflow:
+    build:
+      context: ./Trainer
+      dockerfile: Dockerfile.tensorflow
+    networks:
+      - broker-net
+    volumes:
+      - datasets:/data:ro
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - TRAINER_NAME=tensorflow
+    depends_on:
+      kafka:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    restart: unless-stopped
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  broker-net:
+    driver: bridge
 
 volumes:
   postgres_data:
+  datasets:

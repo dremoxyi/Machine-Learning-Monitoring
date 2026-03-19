@@ -1,23 +1,5 @@
-# Frontend Dockerfile
-FROM node:20-alpine
+FROM nginx:alpine
 
-WORKDIR /app
+COPY public/ /usr/share/nginx/html/
 
-# Copier les fichiers de dépendances
-COPY package*.json ./
-
-# Installer les dépendances
-RUN npm ci --only=production
-
-# Copier le code source
-COPY . .
-
-# Exposer le port
-EXPOSE 3000
-
-# Variables d'environnement
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Commande de démarrage
-CMD ["npm", "start"]
+EXPOSE 80
