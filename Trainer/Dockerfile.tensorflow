@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+RUN uv pip install --system --no-cache \
+    tensorflow-cpu==2.15.0 \
+    kafka-python==2.0.2 \
+    psutil==5.9.8
+
+COPY tensorflow_trainer.py .
+
+CMD ["python", "tensorflow_trainer.py"]

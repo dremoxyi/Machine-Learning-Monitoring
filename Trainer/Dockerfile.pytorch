@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+RUN uv pip install --system --no-cache \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+RUN uv pip install --system --no-cache \
+    kafka-python==2.0.2 \
+    psutil==5.9.8
+
+COPY pytorch_trainer.py .
+
+CMD ["python", "pytorch_trainer.py"]
