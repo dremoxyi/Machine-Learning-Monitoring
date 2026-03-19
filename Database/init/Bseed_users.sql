@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 INSERT INTO users (email, password_hash, role)
 VALUES
-  ('admin@local.test', '$2b$10$bXlpufXtgm2rI2p4angva.uSIiPr0N2LzHOVmZFReDzn6kBGx6hBW', 'admin'),
-  ('client@local.test', '$2b$10$BoZBDVAZswyvgjiYQylTzuQv22a6A3nBUpuHagTaz/M5g27pD3TZu', 'client')
-ON CONFLICT (email) DO NOTHING;
+  ('admin@local.cy', '$2b$12$M8BCpQ3UJih06lZImM/Uj.2FvfN715ztBTJNj4kDChJoZAUXSlxXG', 'admin'),
+  ('client@local.cy', '$2b$12$dcwnr43LR7x4oNoTuhZCru9Wc/eL4XkjXxh9gkhZHOzFmSiVEs/N6', 'client')
+ON CONFLICT (email) DO UPDATE
+SET
+  password_hash = EXCLUDED.password_hash,
+  role = EXCLUDED.role;
