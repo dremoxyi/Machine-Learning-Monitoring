@@ -1,11 +1,3 @@
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'client')),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS benchmark_metrics (
   id BIGSERIAL PRIMARY KEY,
   trainer_name VARCHAR(64) NOT NULL,

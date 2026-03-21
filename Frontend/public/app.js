@@ -39,7 +39,7 @@
             });
         }
         
-        // Onglet par defaut au chargement.
+        // Onglet par defaut au chargement
         showSection('acceuil');
     });
 })();

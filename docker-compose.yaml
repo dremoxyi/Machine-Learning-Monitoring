@@ -27,17 +27,23 @@ services:
     expose:
       - "8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@database:5432/benchmark
+      - USERS_DATABASE_URL=postgresql://postgres:postgres@users-db:5432/users_db
+      - METRICS_DATABASE_URL=postgresql://postgres:postgres@metrics-db:5432/metrics_db
+      - LOGS_DATABASE_URL=postgresql://postgres:postgres@logs-db:5432/logs_db
       - JWT_SECRET=hello_blobi_blobo
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
-      database:
+      users-db:
+        condition: service_healthy
+      metrics-db:
+        condition: service_healthy
+      logs-db:
         condition: service_healthy
       kafka:
         condition: service_healthy
     restart: unless-stopped
 
-  database:
+  users-db:
     image: postgres:15-alpine
     networks:
       - backend-net
@@ -46,12 +52,52 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=benchmark
+      - POSTGRES_DB=users_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./Database/init:/docker-entrypoint-initdb.d
+      - users_postgres_data:/var/lib/postgresql/data
+      - ./Database/users-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d benchmark"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d users_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  metrics-db:
+    image: postgres:15-alpine
+    networks:
+      - backend-net
+    expose:
+      - "5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=metrics_db
+    volumes:
+      - metrics_postgres_data:/var/lib/postgresql/data
+      - ./Database/metrics-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d metrics_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  logs-db:
+    image: postgres:15-alpine
+    networks:
+      - backend-net
+    expose:
+      - "5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=logs_db
+    volumes:
+      - logs_postgres_data:/var/lib/postgresql/data
+      - ./Database/logs-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d logs_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -137,6 +183,8 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
+  users_postgres_data:
+  metrics_postgres_data:
+  logs_postgres_data:
   datasets:
   kafka_data:

@@ -14,8 +14,17 @@ from pydantic import BaseModel, EmailStr
 
 app = FastAPI(title="ML Monitoring API")
 
-def get_db_connection() -> psycopg.Connection:
-    return psycopg.connect(os.getenv("DATABASE_URL"))
+
+def get_users_db_connection() -> psycopg.Connection:
+    return psycopg.connect(os.getenv("USERS_DATABASE_URL"))
+
+
+def get_metrics_db_connection() -> psycopg.Connection:
+    return psycopg.connect(os.getenv("METRICS_DATABASE_URL"))
+
+
+def get_logs_db_connection() -> psycopg.Connection:
+    return psycopg.connect(os.getenv("LOGS_DATABASE_URL"))
 
 
 def get_jwt_secret() -> str:
@@ -62,8 +71,24 @@ def get_current_user(authorization: Optional[str] = Header(default=None)) -> dic
     return decode_bearer_token(authorization)
 
 
+def log_event(level: str, event: str, message: str, user_email: Optional[str] = None) -> None:
+    try:
+        with get_logs_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO app_logs (level, event, message, user_email)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (level, event, message, user_email),
+                )
+            conn.commit()
+    except Exception as exc:
+        print(f"[api] log write failed: {exc}")
+
+
 def persist_metric(metric: dict) -> None:
-    with get_db_connection() as conn:
+    with get_metrics_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -126,7 +151,7 @@ def health() -> dict:
 @app.post("/api/auth/register")
 def register(payload: RegisterRequest) -> dict:
     try:
-        with get_db_connection() as conn:
+        with get_users_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -139,9 +164,13 @@ def register(payload: RegisterRequest) -> dict:
                 user = cur.fetchone()
             conn.commit()
     except psycopg.errors.UniqueViolation:
+        log_event("warn", "auth.register.duplicate", "email deja utilise", payload.email)
         raise HTTPException(status_code=409, detail="email deja utilise") from None
     except Exception:
+        log_event("error", "auth.register.error", "erreur serveur", payload.email)
         raise HTTPException(status_code=500, detail="erreur serveur") from None
+
+    log_event("info", "auth.register.success", "inscription reussie", payload.email)
 
     return {"id": user[0], "email": user[1], "role": user[2]}
 
@@ -149,7 +178,7 @@ def register(payload: RegisterRequest) -> dict:
 @app.post("/api/auth/login")
 def login(payload: LoginRequest) -> dict:
     try:
-        with get_db_connection() as conn:
+        with get_users_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -161,13 +190,16 @@ def login(payload: LoginRequest) -> dict:
                 )
                 row = cur.fetchone()
     except Exception:
+        log_event("error", "auth.login.error", "erreur serveur", payload.email)
         raise HTTPException(status_code=500, detail="erreur serveur") from None
 
     if row is None:
+        log_event("warn", "auth.login.failed", "identifiants invalides", payload.email)
         raise HTTPException(status_code=401, detail="identifiants invalides")
 
     user_id, email, password_hash, role = row
     if not verify_password(payload.password, password_hash):
+        log_event("warn", "auth.login.failed", "identifiants invalides", payload.email)
         raise HTTPException(status_code=401, detail="identifiants invalides")
 
     token = jwt.encode(
@@ -175,6 +207,8 @@ def login(payload: LoginRequest) -> dict:
         get_jwt_secret(),
         algorithm="HS256",
     )
+
+    log_event("info", "auth.login.success", "connexion reussie", email)
 
     return {
         "token": token,
@@ -210,7 +244,7 @@ def metrics_live(
 
     limit = min(max(limit, 1), 200)
 
-    with get_db_connection() as conn:
+    with get_metrics_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -269,7 +303,7 @@ def metrics_history(
     query += " ORDER BY created_at DESC LIMIT %s"
     params.append(limit)
 
-    with get_db_connection() as conn:
+    with get_metrics_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(query, tuple(params))
             rows = cur.fetchall()

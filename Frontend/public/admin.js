@@ -24,7 +24,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    // Ici tu affiches les infos user/admin
     console.log("Utilisateur connecte:", me);
   } catch {
     window.location.href = "connexion.html";
