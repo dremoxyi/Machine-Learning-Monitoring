@@ -1,39 +1,46 @@
+import json
 import os
+import threading
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
 import jwt
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException
+from kafka import KafkaConsumer
 from pydantic import BaseModel, EmailStr
 
 app = FastAPI(title="ML Monitoring API")
 
-
 def get_db_connection() -> psycopg.Connection:
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL is not configured")
-    return psycopg.connect(database_url)
+    return psycopg.connect(os.getenv("DATABASE_URL"))
 
 
 def get_jwt_secret() -> str:
-    return os.getenv("JWT_SECRET", "dev_secret_change_me")
+    return os.getenv("JWT_SECRET", "quoicoubeh")
+
+
+def to_float(value: object) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def hash_password(password: str) -> str:
-    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-    return hashed.decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
-
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
-    role: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -45,17 +52,70 @@ def decode_bearer_token(authorization: Optional[str]) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token manquant")
 
-    token = authorization[7:]
     try:
-        payload = jwt.decode(token, get_jwt_secret(), algorithms=["HS256"])
+        return jwt.decode(authorization[7:], get_jwt_secret(), algorithms=["HS256"])
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token invalide ou expire") from None
-
-    return payload
 
 
 def get_current_user(authorization: Optional[str] = Header(default=None)) -> dict:
     return decode_bearer_token(authorization)
+
+
+def persist_metric(metric: dict) -> None:
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO benchmark_metrics (
+                    trainer_name,
+                    latency_ms,
+                    throughput,
+                    cpu_percent,
+                    ram_percent,
+                    payload
+                )
+                VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                """,
+                (
+                    str(metric.get("trainer_name", "unknown")),
+                    to_float(metric.get("latency_ms")),
+                    to_float(metric.get("throughput")),
+                    to_float(metric.get("cpu_percent")),
+                    to_float(metric.get("ram_percent")),
+                    json.dumps(metric),
+                ),
+            )
+        conn.commit()
+
+
+def kafka_metrics_consumer_loop() -> None:
+    topic = os.getenv("KAFKA_METRICS_TOPIC", "metrics.raw")
+    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+
+    while True:
+        try:
+            consumer = KafkaConsumer(
+                topic,
+                bootstrap_servers=bootstrap_servers,
+                auto_offset_reset="latest",
+                enable_auto_commit=True,
+                group_id="ml-monitoring-api",
+                value_deserializer=lambda raw: json.loads(raw.decode("utf-8")),
+            )
+            print(f"[api] Kafka consumer connecte sur {bootstrap_servers}, topic={topic}")
+
+            for message in consumer:
+                if isinstance(message.value, dict):
+                    persist_metric(message.value)
+        except Exception as exc:
+            print(f"[api] Kafka consumer erreur: {exc}")
+            time.sleep(3)
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    threading.Thread(target=kafka_metrics_consumer_loop, daemon=True).start()
 
 
 @app.get("/api/health")
@@ -65,19 +125,16 @@ def health() -> dict:
 
 @app.post("/api/auth/register")
 def register(payload: RegisterRequest) -> dict:
-    password_hash = hash_password(payload.password)
-    role = "client"
-
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
                     INSERT INTO users (email, password_hash, role)
-                    VALUES (%s, %s, %s)
+                    VALUES (%s, %s, 'client')
                     RETURNING id, email, role
                     """,
-                    (payload.email, password_hash, role),
+                    (payload.email, hash_password(payload.password)),
                 )
                 user = cur.fetchone()
             conn.commit()
@@ -128,29 +185,10 @@ def login(payload: LoginRequest) -> dict:
 
 @app.get("/api/me")
 def me(user: dict = Depends(get_current_user)) -> dict:
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT id, email, role, created_at
-                    FROM users
-                    WHERE id = %s
-                    """,
-                    (user.get("userId"),),
-                )
-                row = cur.fetchone()
-    except Exception:
-        raise HTTPException(status_code=500, detail="erreur serveur") from None
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-
     return {
-        "id": row[0],
-        "email": row[1],
-        "role": row[2],
-        "created_at": row[3].isoformat() if row[3] else None,
+        "id": user.get("userId"),
+        "email": user.get("email"),
+        "role": user.get("role"),
     }
 
 
@@ -159,3 +197,95 @@ def admin_infos(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Acces refuse")
     return {"secret": "donnees admin"}
+
+
+@app.get("/api/metrics/live")
+def metrics_live(
+    limit: int = 20,
+    include_system: bool = False,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    if include_system and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acces refuse")
+
+    limit = min(max(limit, 1), 200)
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, trainer_name, latency_ms, throughput, cpu_percent, ram_percent, created_at
+                FROM benchmark_metrics
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+
+    items = []
+    for row in reversed(rows):
+        metric = {
+            "id": row[0],
+            "trainer_name": row[1],
+            "latency_ms": row[2],
+            "throughput": row[3],
+            "created_at": row[6].isoformat() if row[6] else None,
+        }
+        if include_system:
+            metric["cpu_percent"] = row[4]
+            metric["ram_percent"] = row[5]
+        items.append(metric)
+
+    return {"items": items}
+
+
+@app.get("/api/metrics/history")
+def metrics_history(
+    trainer_name: Optional[str] = None,
+    since_minutes: int = 60,
+    limit: int = 500,
+    include_system: bool = False,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    if include_system and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acces refuse")
+
+    limit = min(max(limit, 1), 2000)
+    since_minutes = min(max(since_minutes, 1), 7 * 24 * 60)
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+
+    query = """
+        SELECT id, trainer_name, latency_ms, throughput, cpu_percent, ram_percent, created_at
+        FROM benchmark_metrics
+        WHERE created_at >= %s
+    """
+    params = [cutoff]
+
+    if trainer_name:
+        query += " AND trainer_name = %s"
+        params.append(trainer_name)
+
+    query += " ORDER BY created_at DESC LIMIT %s"
+    params.append(limit)
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, tuple(params))
+            rows = cur.fetchall()
+
+    items = []
+    for row in reversed(rows):
+        metric = {
+            "id": row[0],
+            "trainer_name": row[1],
+            "latency_ms": row[2],
+            "throughput": row[3],
+            "created_at": row[6].isoformat() if row[6] else None,
+        }
+        if include_system:
+            metric["cpu_percent"] = row[4]
+            metric["ram_percent"] = row[5]
+        items.append(metric)
+
+    return {"items": items}
