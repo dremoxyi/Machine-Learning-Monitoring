@@ -1,7 +1,17 @@
 # Machine-Learning-Monitoring
-Projet Final de Architecture | Microservice
+Projet Final de Architecture | Microservice 
 
-## Installation
+## Lancement du projet
 ```bash
-à configurer
+docker compose up -d --build
 ```
+
+## Users
+
+- **Admin**:
+    - Email: admin@cy-tech.fr
+    - Password: admin
+
+- **User**:
+    - Email: user@cy-tech.fr
+    - Password: user
