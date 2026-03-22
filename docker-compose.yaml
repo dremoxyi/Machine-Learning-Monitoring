@@ -132,6 +132,32 @@ services:
       retries: 5
     restart: unless-stopped
 
+  dataset-downloader-cifar100:
+    image: alpine:3.20
+    networks:
+      - broker-net
+    volumes:
+      - datasets:/data
+      - ./scripts:/scripts:ro
+    command:
+      - sh
+      - -c
+      - apk add --no-cache bash curl tar >/dev/null && bash /scripts/download_cifar100.sh /data/cifar100
+    restart: "no"
+
+  dataset-downloader-fashion-mnist:
+    image: alpine:3.20
+    networks:
+      - broker-net
+    volumes:
+      - datasets:/data
+      - ./scripts:/scripts:ro
+    command:
+      - sh
+      - -c
+      - apk add --no-cache bash curl gzip >/dev/null && bash /scripts/download_fashion_mnist.sh /data/fashion-mnist
+    restart: "no"
+
   trainer-pytorch:
     build:
       context: ./Trainer
@@ -144,6 +170,10 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - TRAINER_NAME=pytorch
     depends_on:
+      dataset-downloader-cifar100:
+        condition: service_completed_successfully
+      dataset-downloader-fashion-mnist:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
     deploy:
@@ -165,6 +195,10 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - TRAINER_NAME=tensorflow
     depends_on:
+      dataset-downloader-cifar100:
+        condition: service_completed_successfully
+      dataset-downloader-fashion-mnist:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
     deploy:
