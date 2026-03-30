@@ -32,6 +32,8 @@ services:
       - LOGS_DATABASE_URL=postgresql://postgres:postgres@logs-db:5432/logs_db
       - JWT_SECRET=hello_blobi_blobo
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_METRICS_TOPICS=metrics.trainer.pytorch,metrics.trainer.tensorflow
+      - KAFKA_CONSUMER_GROUP_ID=ml-monitoring-api
     depends_on:
       users-db:
         condition: service_healthy
@@ -39,6 +41,8 @@ services:
         condition: service_healthy
       logs-db:
         condition: service_healthy
+      kafka-topic-setup:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
     restart: unless-stopped
@@ -124,13 +128,29 @@ services:
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=false
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
       timeout: 10s
       retries: 5
     restart: unless-stopped
+
+  kafka-topic-setup:
+    image: confluentinc/cp-kafka:7.6.1
+    networks:
+      - broker-net
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic metrics.trainer.pytorch --partitions 2 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic metrics.trainer.tensorflow --partitions 2 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --list
+    restart: "no"
 
   dataset-downloader-cifar100:
     image: alpine:3.20
@@ -169,10 +189,18 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - TRAINER_NAME=pytorch
+      - KAFKA_METRICS_TOPIC=metrics.trainer.pytorch
+      - DATASET_NAMES=cifar100,fashion-mnist
+      - BATCH_SIZE=64
+      - LEARNING_RATE=0.001
+      - TRAIN_LOOP_SLEEP_SECONDS=0.5
+      - TRAIN_SEED=42
     depends_on:
       dataset-downloader-cifar100:
         condition: service_completed_successfully
       dataset-downloader-fashion-mnist:
+        condition: service_completed_successfully
+      kafka-topic-setup:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
@@ -194,10 +222,18 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - TRAINER_NAME=tensorflow
+      - KAFKA_METRICS_TOPIC=metrics.trainer.tensorflow
+      - DATASET_NAMES=cifar100,fashion-mnist
+      - BATCH_SIZE=64
+      - LEARNING_RATE=0.001
+      - TRAIN_LOOP_SLEEP_SECONDS=0.5
+      - TRAIN_SEED=42
     depends_on:
       dataset-downloader-cifar100:
         condition: service_completed_successfully
       dataset-downloader-fashion-mnist:
+        condition: service_completed_successfully
+      kafka-topic-setup:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
