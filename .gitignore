@@ -2,3 +2,4 @@ node_modules
 *.old
 datasets/*
 !datasets/.gitkeep
+.env

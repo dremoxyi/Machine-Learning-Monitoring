@@ -27,13 +27,13 @@ services:
     expose:
       - "8000"
     environment:
-      - USERS_DATABASE_URL=postgresql://postgres:postgres@users-db:5432/users_db
-      - METRICS_DATABASE_URL=postgresql://postgres:postgres@metrics-db:5432/metrics_db
-      - LOGS_DATABASE_URL=postgresql://postgres:postgres@logs-db:5432/logs_db
-      - JWT_SECRET=hello_blobi_blobo
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_METRICS_TOPICS=metrics.trainer.pytorch,metrics.trainer.tensorflow
-      - KAFKA_CONSUMER_GROUP_ID=ml-monitoring-api
+      - USERS_DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@users-db:5432/${POSTGRES_DB_USERS}
+      - METRICS_DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@metrics-db:5432/${POSTGRES_DB_METRICS}
+      - LOGS_DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@logs-db:5432/${POSTGRES_DB_LOGS}
+      - JWT_SECRET=${JWT_SECRET}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - KAFKA_METRICS_TOPICS=${KAFKA_METRICS_TOPICS}
+      - KAFKA_CONSUMER_GROUP_ID=${KAFKA_CONSUMER_GROUP_ID}
     depends_on:
       users-db:
         condition: service_healthy
@@ -54,14 +54,14 @@ services:
     expose:
       - "5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=users_db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB_USERS}
     volumes:
       - users_postgres_data:/var/lib/postgresql/data
       - ./Database/users-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d users_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_USERS}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -74,14 +74,14 @@ services:
     expose:
       - "5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=metrics_db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB_METRICS}
     volumes:
       - metrics_postgres_data:/var/lib/postgresql/data
       - ./Database/metrics-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d metrics_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_METRICS}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -94,14 +94,14 @@ services:
     expose:
       - "5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=logs_db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB_LOGS}
     volumes:
       - logs_postgres_data:/var/lib/postgresql/data
       - ./Database/logs-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d logs_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_LOGS}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -124,7 +124,7 @@ services:
       - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      - CLUSTER_ID=${KAFKA_CLUSTER_ID}
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
@@ -187,14 +187,14 @@ services:
     volumes:
       - datasets:/data:ro
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
       - TRAINER_NAME=pytorch
       - KAFKA_METRICS_TOPIC=metrics.trainer.pytorch
-      - DATASET_NAMES=cifar100,fashion-mnist
-      - BATCH_SIZE=64
-      - LEARNING_RATE=0.001
-      - TRAIN_LOOP_SLEEP_SECONDS=0.5
-      - TRAIN_SEED=42
+      - DATASET_NAMES=${DATASET_NAMES}
+      - BATCH_SIZE=${BATCH_SIZE}
+      - LEARNING_RATE=${LEARNING_RATE}
+      - TRAIN_LOOP_SLEEP_SECONDS=${TRAIN_LOOP_SLEEP_SECONDS}
+      - TRAIN_SEED=${TRAIN_SEED}
     depends_on:
       dataset-downloader-cifar100:
         condition: service_completed_successfully
@@ -207,8 +207,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 2G
+          cpus: "${TRAINER_CPU_LIMIT}"
+          memory: ${TRAINER_MEMORY_LIMIT}
     restart: unless-stopped
 
   trainer-tensorflow:
@@ -220,14 +220,14 @@ services:
     volumes:
       - datasets:/data:ro
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
       - TRAINER_NAME=tensorflow
       - KAFKA_METRICS_TOPIC=metrics.trainer.tensorflow
-      - DATASET_NAMES=cifar100,fashion-mnist
-      - BATCH_SIZE=64
-      - LEARNING_RATE=0.001
-      - TRAIN_LOOP_SLEEP_SECONDS=0.5
-      - TRAIN_SEED=42
+      - DATASET_NAMES=${DATASET_NAMES}
+      - BATCH_SIZE=${BATCH_SIZE}
+      - LEARNING_RATE=${LEARNING_RATE}
+      - TRAIN_LOOP_SLEEP_SECONDS=${TRAIN_LOOP_SLEEP_SECONDS}
+      - TRAIN_SEED=${TRAIN_SEED}
     depends_on:
       dataset-downloader-cifar100:
         condition: service_completed_successfully
@@ -240,8 +240,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 2G
+          cpus: "${TRAINER_CPU_LIMIT}"
+          memory: ${TRAINER_MEMORY_LIMIT}
     restart: unless-stopped
 
 networks:

@@ -115,20 +115,24 @@ def persist_metric(metric: dict) -> None:
 
 
 def kafka_metrics_consumer_loop() -> None:
-    topic = os.getenv("KAFKA_METRICS_TOPIC", "metrics.raw")
+    topics_raw = os.getenv("KAFKA_METRICS_TOPICS", "metrics.trainer.pytorch,metrics.trainer.tensorflow")
+    topics = [value.strip() for value in topics_raw.split(",") if value.strip()]
+    if not topics:
+        topics = ["metrics.trainer.pytorch", "metrics.trainer.tensorflow"]
     bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+    consumer_group_id = os.getenv("KAFKA_CONSUMER_GROUP_ID", "ml-monitoring-api")
 
     while True:
         try:
             consumer = KafkaConsumer(
-                topic,
+                *topics,
                 bootstrap_servers=bootstrap_servers,
                 auto_offset_reset="latest",
                 enable_auto_commit=True,
-                group_id="ml-monitoring-api",
+                group_id=consumer_group_id,
                 value_deserializer=lambda raw: json.loads(raw.decode("utf-8")),
             )
-            print(f"[api] Kafka consumer connecte sur {bootstrap_servers}, topic={topic}")
+            print(f"[api] Kafka consumer connecte sur {bootstrap_servers}, topics={topics}")
 
             for message in consumer:
                 if isinstance(message.value, dict):
