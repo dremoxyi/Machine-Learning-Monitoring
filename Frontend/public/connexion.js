@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('role', data.role);
 
             if (data.role === 'admin') {
-                window.location.href = 'admin-panel.html';
+                window.location.href = 'admin.html';
             } else {
                 window.location.href = 'index.html';
             }
