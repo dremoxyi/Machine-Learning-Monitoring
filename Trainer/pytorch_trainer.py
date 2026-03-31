@@ -3,6 +3,7 @@ import time
 import json
 import pickle
 import struct
+import uuid
 from pathlib import Path
 from typing import Dict, Tuple
 
@@ -15,6 +16,7 @@ import psutil
 from kafka import KafkaProducer
 
 trainer_name = os.environ.get("TRAINER_NAME", "pytorch")
+run_id = str(uuid.uuid4())
 bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 topic = os.environ.get("KAFKA_METRICS_TOPIC", f"metrics.trainer.{trainer_name}")
 dataset_names = [
@@ -142,6 +144,7 @@ def take_batch(state: Dict[str, object], batch_len: int) -> Tuple[torch.Tensor, 
 def build_metrics_payload(dataset_name: str, latency_ms: float, throughput: float, loss: float, accuracy: float, step: int) -> dict:
     return {
         "trainer_name": trainer_name,
+        "run_id": run_id,
         "dataset_name": dataset_name,
         "latency_ms": round(latency_ms, 2),
         "throughput": round(throughput, 2),

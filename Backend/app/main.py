@@ -94,18 +94,28 @@ def persist_metric(metric: dict) -> None:
                 """
                 INSERT INTO benchmark_metrics (
                     trainer_name,
+                    run_id,
+                    dataset_name,
+                    step,
                     latency_ms,
                     throughput,
+                    accuracy,
+                    loss,
                     cpu_percent,
                     ram_percent,
                     payload
                 )
-                VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
                 """,
                 (
                     str(metric.get("trainer_name", "unknown")),
+                    str(metric.get("run_id", "unknown")),
+                    str(metric.get("dataset_name", "unknown")),
+                    int(metric["step"]) if metric.get("step") is not None else None,
                     to_float(metric.get("latency_ms")),
                     to_float(metric.get("throughput")),
+                    to_float(metric.get("accuracy")),
+                    to_float(metric.get("loss")),
                     to_float(metric.get("cpu_percent")),
                     to_float(metric.get("ram_percent")),
                     json.dumps(metric),
@@ -252,7 +262,9 @@ def metrics_live(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, trainer_name, latency_ms, throughput, cpu_percent, ram_percent, created_at
+                SELECT id, trainer_name, run_id, dataset_name, step,
+                       latency_ms, throughput, accuracy, loss,
+                       cpu_percent, ram_percent, created_at
                 FROM benchmark_metrics
                 ORDER BY created_at DESC
                 LIMIT %s
@@ -266,13 +278,18 @@ def metrics_live(
         metric = {
             "id": row[0],
             "trainer_name": row[1],
-            "latency_ms": row[2],
-            "throughput": row[3],
-            "created_at": row[6].isoformat() if row[6] else None,
+            "run_id": row[2],
+            "dataset_name": row[3],
+            "step": row[4],
+            "latency_ms": row[5],
+            "throughput": row[6],
+            "accuracy": row[7],
+            "loss": row[8],
+            "created_at": row[11].isoformat() if row[11] else None,
         }
         if include_system:
-            metric["cpu_percent"] = row[4]
-            metric["ram_percent"] = row[5]
+            metric["cpu_percent"] = row[9]
+            metric["ram_percent"] = row[10]
         items.append(metric)
 
     return {"items": items}
@@ -294,7 +311,9 @@ def metrics_history(
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
 
     query = """
-        SELECT id, trainer_name, latency_ms, throughput, cpu_percent, ram_percent, created_at
+        SELECT id, trainer_name, run_id, dataset_name, step,
+               latency_ms, throughput, accuracy, loss,
+               cpu_percent, ram_percent, created_at
         FROM benchmark_metrics
         WHERE created_at >= %s
     """
@@ -317,13 +336,18 @@ def metrics_history(
         metric = {
             "id": row[0],
             "trainer_name": row[1],
-            "latency_ms": row[2],
-            "throughput": row[3],
-            "created_at": row[6].isoformat() if row[6] else None,
+            "run_id": row[2],
+            "dataset_name": row[3],
+            "step": row[4],
+            "latency_ms": row[5],
+            "throughput": row[6],
+            "accuracy": row[7],
+            "loss": row[8],
+            "created_at": row[11].isoformat() if row[11] else None,
         }
         if include_system:
-            metric["cpu_percent"] = row[4]
-            metric["ram_percent"] = row[5]
+            metric["cpu_percent"] = row[9]
+            metric["ram_percent"] = row[10]
         items.append(metric)
 
     return {"items": items}
