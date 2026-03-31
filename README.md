@@ -14,14 +14,22 @@ docker compose up -d --build
 
 ## Users
 
-- **Admin**:
+- **Admin 1**:
     - Email: admin@cy-tech.fr
     - Password: admin
-
-- **User**:
+- **Admin 2**:
+    - Email: alice@cy-tech.fr
+    - Password: alice
+- **User 1**:
     - Email: user@cy-tech.fr
-    - Password: user
-
+    - Password: bob
+- **User 2**:
+    - Email: charlie@cy-tech.fr
+    - Password: charlie
+- **User 3**:
+    - Email: dana@cy-tech.fr
+    - Password: dana
+    
 ## Datasets
 
 Les datasets sont stockes dans un volume Docker partage, monte en lecture seule dans les trainers (`/data`).

@@ -212,6 +212,7 @@
   function renderCharts() {
     const pytorch = state.items.filter((item) => item.trainer_name === "pytorch");
     const tensorflow = state.items.filter((item) => item.trainer_name === "tensorflow");
+    const ZERO_SERIES_POINTS = 60;
 
     const toAcc = (items) => items.map((item) => {
       const v = safeNumber(item.accuracy);
@@ -221,6 +222,7 @@
     const toThroughput = (items) => items.map((item) => safeNumber(item.throughput));
     const toCpu = (items) => items.map((item) => safeNumber(item.cpu_percent));
     const toRam = (items) => items.map((item) => safeNumber(item.ram_percent));
+    const zeroSeries = (size) => Array.from({ length: size }, () => 0);
 
     drawLineChart("precision-chart-pytorch", toAcc(pytorch), "#3ea6ff", 100, { unit: "%", title: "Accuracy" });
     drawLineChart("precision-chart-tensorflow", toAcc(tensorflow), "#3ea6ff", 100, { unit: "%", title: "Accuracy" });
@@ -238,10 +240,11 @@
     } else {
       setText("cpu-access-msg", "Acces refuse: seul un admin peut visualiser CPU.");
       setText("ram-access-msg", "Acces refuse: seul un admin peut visualiser RAM.");
-      drawLineChart("cpu-chart-pytorch", [], "#ff8c42", 100, { unit: "%", title: "CPU" });
-      drawLineChart("cpu-chart-tensorflow", [], "#ff8c42", 100, { unit: "%", title: "CPU" });
-      drawLineChart("ram-chart-pytorch", [], "#ffd43b", 100, { unit: "%", title: "RAM" });
-      drawLineChart("ram-chart-tensorflow", [], "#ffd43b", 100, { unit: "%", title: "RAM" });
+      const fakeSeries = zeroSeries(ZERO_SERIES_POINTS);
+      drawLineChart("cpu-chart-pytorch", fakeSeries, "#ff8c42", 100, { unit: "%", title: "CPU" });
+      drawLineChart("cpu-chart-tensorflow", fakeSeries, "#ff8c42", 100, { unit: "%", title: "CPU" });
+      drawLineChart("ram-chart-pytorch", fakeSeries, "#ffd43b", 100, { unit: "%", title: "RAM" });
+      drawLineChart("ram-chart-tensorflow", fakeSeries, "#ffd43b", 100, { unit: "%", title: "RAM" });
     }
 
     setText("speed-latency-pytorch", avg(toLatency(pytorch)));
