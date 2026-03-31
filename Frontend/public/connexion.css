@@ -5,6 +5,11 @@
 	--headerbackground: #1a1a1a;
 }
 
+html {
+	min-height: 100%;
+	background-color: var(--background);
+}
+
 * {
 	box-sizing: border-box;
 }

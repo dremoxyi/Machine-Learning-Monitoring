@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "connexion.html";
   }
 
-  function drawLineChart(canvasId, values, color, maxY) {
+  function drawLineChart(canvasId, values, color, maxY, options) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) {
       return;
@@ -67,49 +67,102 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const width = canvas.clientWidth || 760;
-    const height = Number(canvas.getAttribute("height") || "170");
-    canvas.width = width;
-    canvas.height = height;
+    const unit = (options && options.unit) || "";
+    const title = (options && options.title) || "";
 
-    ctx.clearRect(0, 0, width, height);
+    const W = canvas.clientWidth || 760;
+    const H = Number(canvas.getAttribute("height") || "170");
+    canvas.width = W;
+    canvas.height = H;
+
+    const PAD_LEFT = 52;
+    const PAD_RIGHT = 14;
+    const PAD_TOP = title ? 24 : 10;
+    const PAD_BOTTOM = 10;
+    const cW = W - PAD_LEFT - PAD_RIGHT;
+    const cH = H - PAD_TOP - PAD_BOTTOM;
+
     ctx.fillStyle = "#121212";
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = "#2e2e2e";
-    for (let i = 1; i <= 4; i += 1) {
-      const y = (height / 5) * i;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
+    const clean = values
+      .filter((v) => v !== null && v !== undefined && !Number.isNaN(Number(v)))
+      .map(Number);
+    const yMax = maxY != null ? maxY : (clean.length ? Math.max(...clean, 1) : 1);
+
+    function fmtVal(v) {
+      const n = unit === "%" || yMax >= 100 ? Math.round(v) : yMax >= 10 ? v.toFixed(1) : v.toFixed(2);
+      return unit === "%" ? `${n}%` : unit ? `${n} ${unit}` : String(n);
     }
 
-    const clean = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(Number(v))).map(Number);
+    if (title) {
+      ctx.fillStyle = "#999";
+      ctx.font = "bold 11px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText(title, PAD_LEFT + 2, 16);
+    }
+
+    for (let i = 0; i <= 4; i += 1) {
+      const ratio = i / 4;
+      const y = PAD_TOP + cH * (1 - ratio);
+      ctx.strokeStyle = "#242424";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PAD_LEFT, y);
+      ctx.lineTo(W - PAD_RIGHT, y);
+      ctx.stroke();
+      ctx.fillStyle = "#555";
+      ctx.font = "10px Arial";
+      ctx.textAlign = "right";
+      ctx.fillText(fmtVal(ratio * yMax), PAD_LEFT - 4, y + 3.5);
+    }
+
     if (!clean.length) {
-      ctx.fillStyle = "#c8c8c8";
-      ctx.font = "14px Arial";
-      ctx.fillText("Aucune donnee", 12, 24);
+      ctx.fillStyle = "#555";
+      ctx.font = "13px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText("Aucune donnee", PAD_LEFT + 10, PAD_TOP + cH / 2 + 5);
       return;
     }
 
-    const yMax = maxY || Math.max(...clean, 1);
-    const xStep = clean.length > 1 ? width / (clean.length - 1) : width;
+    const xStep = clean.length <= 1 ? cW : cW / (clean.length - 1);
+    const xOf = (i) => PAD_LEFT + xStep * i;
+    const yOf = (v) => PAD_TOP + cH - (v / yMax) * cH;
+
+    const grad = ctx.createLinearGradient(0, PAD_TOP, 0, PAD_TOP + cH);
+    grad.addColorStop(0, `${color}33`);
+    grad.addColorStop(1, `${color}00`);
+    ctx.beginPath();
+    clean.forEach((v, i) => {
+      if (i === 0) ctx.moveTo(xOf(i), yOf(v));
+      else ctx.lineTo(xOf(i), yOf(v));
+    });
+    ctx.lineTo(xOf(clean.length - 1), PAD_TOP + cH);
+    ctx.lineTo(xOf(0), PAD_TOP + cH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
     ctx.beginPath();
-
-    clean.forEach((value, index) => {
-      const x = xStep * index;
-      const y = height - (value / yMax) * (height - 18) - 8;
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+    clean.forEach((v, i) => {
+      if (i === 0) ctx.moveTo(xOf(i), yOf(v));
+      else ctx.lineTo(xOf(i), yOf(v));
     });
-
     ctx.stroke();
+
+    const lv = clean[clean.length - 1];
+    const lx = xOf(clean.length - 1);
+    const ly = yOf(lv);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = lx > W - 72 ? "right" : "left";
+    ctx.fillText(fmtVal(lv), lx + (lx > W - 72 ? -7 : 7), ly - 6);
   }
 
   function renderLive(items) {
@@ -144,10 +197,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       )
       .join("");
 
-    drawLineChart("admin-accuracy-chart", items.map((item) => item.accuracy), "#3ea6ff", 1);
-    drawLineChart("admin-speed-chart", items.map((item) => item.latency_ms), "#20c997");
-    drawLineChart("admin-cpu-chart", items.map((item) => item.cpu_percent), "#ff8c42", 100);
-    drawLineChart("admin-ram-chart", items.map((item) => item.ram_percent), "#ffd43b", 100);
+    const pytorch = items.filter((item) => item.trainer_name === "pytorch");
+    const tensorflow = items.filter((item) => item.trainer_name === "tensorflow");
+
+    const toAcc = (rows) => rows.map((item) => item.accuracy != null ? item.accuracy * 100 : null);
+    const toLatency = (rows) => rows.map((item) => item.latency_ms);
+    const toCpu = (rows) => rows.map((item) => item.cpu_percent);
+    const toRam = (rows) => rows.map((item) => item.ram_percent);
+
+    drawLineChart("admin-accuracy-chart-pytorch", toAcc(pytorch), "#3ea6ff", 100, { unit: "%", title: "Accuracy" });
+    drawLineChart("admin-accuracy-chart-tensorflow", toAcc(tensorflow), "#3ea6ff", 100, { unit: "%", title: "Accuracy" });
+    drawLineChart("admin-speed-chart-pytorch", toLatency(pytorch), "#20c997", null, { unit: "ms", title: "Latence par batch" });
+    drawLineChart("admin-speed-chart-tensorflow", toLatency(tensorflow), "#20c997", null, { unit: "ms", title: "Latence par batch" });
+    drawLineChart("admin-cpu-chart-pytorch", toCpu(pytorch), "#ff8c42", 100, { unit: "%", title: "CPU" });
+    drawLineChart("admin-cpu-chart-tensorflow", toCpu(tensorflow), "#ff8c42", 100, { unit: "%", title: "CPU" });
+    drawLineChart("admin-ram-chart-pytorch", toRam(pytorch), "#ffd43b", 100, { unit: "%", title: "RAM" });
+    drawLineChart("admin-ram-chart-tensorflow", toRam(tensorflow), "#ffd43b", 100, { unit: "%", title: "RAM" });
   }
 
   async function assertAdmin() {
@@ -208,14 +273,69 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  const DATASET_LABELS = {
+    "cifar100": "CIFAR-100",
+    "fashion-mnist": "Fashion-MNIST",
+    "none": "Arrete",
+  };
+
+  function renderDatasetState(dataset) {
+    const label = document.getElementById("active-dataset-label");
+    if (label) {
+      label.textContent = DATASET_LABELS[dataset] || dataset;
+      label.style.color = dataset === "none" ? "#ffd43b" : "#20c997";
+    }
+    ["cifar100", "fashion-mnist", "none"].forEach((d) => {
+      const btn = document.getElementById(`dataset-btn-${d}`);
+      if (btn) {
+        btn.style.outline = d === dataset ? "2px solid #c089ff" : "";
+        btn.style.opacity = d === dataset ? "1" : "0.6";
+      }
+    });
+  }
+
+  async function loadDatasetState() {
+    try {
+      const data = await client.request("/api/admin/trainers/states");
+      renderDatasetState(data.dataset || "none");
+    } catch (error) {
+      if (error.message === "UNAUTHORIZED") {
+        logout();
+      }
+    }
+  }
+
+  async function selectDataset(dataset) {
+    try {
+      await client.request("/api/admin/training/dataset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataset }),
+      });
+      renderDatasetState(dataset);
+    } catch (error) {
+      if (error.message === "UNAUTHORIZED") {
+        logout();
+      }
+    }
+  }
+
   document.getElementById("admin-logout-btn")?.addEventListener("click", logout);
   document.getElementById("admin-refresh-btn")?.addEventListener("click", refreshLive);
+
+  ["cifar100", "fashion-mnist", "none"].forEach((dataset) => {
+    document.getElementById(`dataset-btn-${dataset}`)?.addEventListener("click", () => {
+      selectDataset(dataset);
+    });
+  });
 
   const ok = await assertAdmin();
   if (!ok) {
     return;
   }
 
+  await loadDatasetState();
   await refreshLive();
   setInterval(refreshLive, REFRESH_MS);
+  setInterval(loadDatasetState, REFRESH_MS);
 });

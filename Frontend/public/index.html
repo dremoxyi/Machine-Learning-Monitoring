@@ -11,7 +11,7 @@
         <div class="header-top-row">
             <h1 class="titre_gros">ML Monitoring Dashboard</h1>
             <button class="bouton-connexion" id="connexion">
-                Deconnexion
+                Déconnexion
                 <div class="icon">
                     <svg height="24" width="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M0 0h24v24H0z" fill="none"></path>
@@ -22,10 +22,10 @@
         </div>
 
         <nav class="nav1">
-            <button id="nav-precision">Precision du modele</button>
-            <button id="nav-speed">Vitesse d execution</button>
-            <button id="nav-cpu">CPU machine hote</button>
-            <button id="nav-ram">RAM machine hote</button>
+            <button id="nav-precision">Précision du modèle</button>
+            <button id="nav-speed">Vitesse d'exécution</button>
+            <button id="nav-cpu">CPU machine hôte</button>
+            <button id="nav-ram">RAM machine hôte</button>
             <button id="nav-contacts">Contacts</button>
             <button id="nav-cgu">CGU</button>
         </nav>
@@ -33,13 +33,13 @@
 
     <main>
         <section id="precision-section">
-            <h2>Precision du modele</h2>
+            <h2>Précision du modèle</h2>
 
             <div class="session-card">
                 <h3>Session</h3>
-                <p>Etat utilisateur: <strong id="user-badge">-</strong></p>
-                <p>Nom et prenom: <strong id="user-fullname">-</strong></p>
-                <p id="global-last-refresh">Dernier rafraichissement: -</p>
+                <p>État utilisateur: <strong id="user-badge">-</strong></p>
+                <p>Nom et prénom: <strong id="user-fullname">-</strong></p>
+                <p id="global-last-refresh">Dernier rafraîchissement: -</p>
                 <a id="admin-link" href="admin.html" class="small-btn" style="display:none;">Ouvrir le panel admin</a>
             </div>
 
@@ -49,39 +49,76 @@
                 <div class="kpi-grid">
                     <div class="kpi"><span class="kpi-label">API</span><span class="kpi-value" id="home-status">-</span></div>
                     <div class="kpi"><span class="kpi-label">Points</span><span class="kpi-value" id="home-count">0</span></div>
-                    <div class="kpi"><span class="kpi-label">Dernier trainer</span><span class="kpi-value" id="home-last-trainer">-</span></div>
-                    <div class="kpi"><span class="kpi-label">Derniere accuracy</span><span class="kpi-value" id="home-last-accuracy">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Dernière accuracy</span><span class="kpi-value" id="home-last-accuracy">-</span></div>
                 </div>
-                <button id="user-refresh-btn" type="button">Rafraichir maintenant</button>
-                <canvas id="precision-chart" class="metric-chart" height="180"></canvas>
+                <button id="user-refresh-btn" type="button">Rafraîchir maintenant</button>
+                <div class="compare-grid">
+                    <div class="compare-col">
+                        <div class="trainer-badge pytorch">PyTorch</div>
+                        <canvas id="precision-chart-pytorch" class="metric-chart" height="180"></canvas>
+                    </div>
+                    <div class="compare-col">
+                        <div class="trainer-badge tensorflow">TensorFlow</div>
+                        <canvas id="precision-chart-tensorflow" class="metric-chart" height="180"></canvas>
+                    </div>
+                </div>
             </div>
         </section>
 
         <section id="speed-section" style="display:none;">
-            <h2>Vitesse d execution</h2>
+            <h2>Vitesse d'exécution</h2>
             <div class="panel">
                 <p id="speed-meta">Latence moyenne et vitesse de traitement sur les derniers points.</p>
-                <canvas id="speed-chart" class="metric-chart" height="180"></canvas>
                 <div class="kpi-grid">
-                    <div class="kpi"><span class="kpi-label">Latence moyenne (ms)</span><span class="kpi-value" id="speed-latency">-</span></div>
-                    <div class="kpi"><span class="kpi-label">Throughput moyen</span><span class="kpi-value" id="speed-throughput">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Latence moy. PyTorch (ms)</span><span class="kpi-value" id="speed-latency-pytorch">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Latence moy. TensorFlow (ms)</span><span class="kpi-value" id="speed-latency-tensorflow">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Throughput moy. PyTorch</span><span class="kpi-value" id="speed-throughput-pytorch">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Throughput moy. TensorFlow</span><span class="kpi-value" id="speed-throughput-tensorflow">-</span></div>
+                </div>
+                <div class="compare-grid">
+                    <div class="compare-col">
+                        <div class="trainer-badge pytorch">PyTorch</div>
+                        <canvas id="speed-chart-pytorch" class="metric-chart" height="180"></canvas>
+                    </div>
+                    <div class="compare-col">
+                        <div class="trainer-badge tensorflow">TensorFlow</div>
+                        <canvas id="speed-chart-tensorflow" class="metric-chart" height="180"></canvas>
+                    </div>
                 </div>
             </div>
         </section>
 
         <section id="cpu-section" style="display:none;">
-            <h2>Utilisation CPU machine hote</h2>
+            <h2>Utilisation CPU machine hôte</h2>
             <div class="panel">
                 <p id="cpu-access-msg">Chargement...</p>
-                <canvas id="cpu-chart" class="metric-chart" height="180"></canvas>
+                <div class="compare-grid">
+                    <div class="compare-col">
+                        <div class="trainer-badge pytorch">PyTorch</div>
+                        <canvas id="cpu-chart-pytorch" class="metric-chart" height="180"></canvas>
+                    </div>
+                    <div class="compare-col">
+                        <div class="trainer-badge tensorflow">TensorFlow</div>
+                        <canvas id="cpu-chart-tensorflow" class="metric-chart" height="180"></canvas>
+                    </div>
+                </div>
             </div>
         </section>
 
         <section id="ram-section" style="display:none;">
-            <h2>Utilisation RAM machine hote</h2>
+            <h2>Utilisation RAM machine hôte</h2>
             <div class="panel">
                 <p id="ram-access-msg">Chargement...</p>
-                <canvas id="ram-chart" class="metric-chart" height="180"></canvas>
+                <div class="compare-grid">
+                    <div class="compare-col">
+                        <div class="trainer-badge pytorch">PyTorch</div>
+                        <canvas id="ram-chart-pytorch" class="metric-chart" height="180"></canvas>
+                    </div>
+                    <div class="compare-col">
+                        <div class="trainer-badge tensorflow">TensorFlow</div>
+                        <canvas id="ram-chart-tensorflow" class="metric-chart" height="180"></canvas>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -99,15 +136,15 @@
         <section id="cgu-section" style="display:none;">
             <div class="panel session-card">
                 <h2>CGU</h2>
-                <p>1. Cette application est reservee au suivi technique des entrainements.</p>
-                <p>2. Les donnees de performance sont collectees a des fins de monitoring interne.</p>
-                <p>3. Les comptes utilisateurs ne doivent pas etre partages.</p>
-                <p>4. L acces aux metriques CPU/RAM est strictement reserve aux admins.</p>
+                <p>1. Cette application est réservée au suivi technique des entraînements.</p>
+                <p>2. Les données de performance sont collectées à des fins de monitoring interne.</p>
+                <p>3. Les comptes utilisateurs ne doivent pas être partagés.</p>
+                <p>4. L'accès aux métriques CPU/RAM est strictement réservé aux admins.</p>
             </div>
         </section>
     </main>
 
-    <script src="api.js?v=20260331d"></script>
-    <script src="app.js?v=20260331d"></script>
+    <script src="api.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

@@ -12,28 +12,49 @@
             <h1>Admin Panel</h1>
             <p id="admin-meta">Chargement du profil admin...</p>
             <div class="kpi-grid">
-                <div class="kpi"><span class="kpi-label">Etat API</span><span class="kpi-value" id="admin-api-status">-</span></div>
-                <div class="kpi"><span class="kpi-label">Metriques chargees</span><span class="kpi-value" id="admin-count">0</span></div>
-                <div class="kpi"><span class="kpi-label">Dernier trainer</span><span class="kpi-value" id="admin-last-trainer">-</span></div>
-                <div class="kpi"><span class="kpi-label">Derniere MAJ</span><span class="kpi-value" id="admin-last-update">-</span></div>
+                <div class="kpi"><span class="kpi-label">État API</span><span class="kpi-value" id="admin-api-status">-</span></div>
+                <div class="kpi"><span class="kpi-label">Métriques chargées</span><span class="kpi-value" id="admin-count">0</span></div>
+                <div class="kpi"><span class="kpi-label">Dernière MAJ</span><span class="kpi-value" id="admin-last-update">-</span></div>
             </div>
 
             <div class="form-grid" style="max-width:600px;">
                 <label for="admin-limit">Limite live</label>
                 <input id="admin-limit" type="number" min="1" max="200" value="60">
 
-                <button id="admin-refresh-btn" type="button">Rafraichir maintenant</button>
-                <button id="admin-logout-btn" type="button">Deconnexion</button>
-                <a href="index.html" class="small-btn">Retour dashboard user</a>
+                <button id="admin-refresh-btn" type="button">Rafraîchir maintenant</button>
+                <button id="admin-logout-btn" type="button">Déconnexion</button>
+                <a href="index.html" class="small-btn">Retour au dashboard utilisateur</a>
             </div>
         </section>
 
         <section class="panel">
-            <h2>Graphes live admin (rafraichissement 5s)</h2>
-            <canvas id="admin-accuracy-chart" class="metric-chart" height="170"></canvas>
-            <canvas id="admin-speed-chart" class="metric-chart" height="170"></canvas>
-            <canvas id="admin-cpu-chart" class="metric-chart" height="170"></canvas>
-            <canvas id="admin-ram-chart" class="metric-chart" height="170"></canvas>
+            <h2>Gestion des entraînements</h2>
+            <p>Dataset actif (PyTorch + TensorFlow): <strong id="active-dataset-label">-</strong></p>
+            <div class="dataset-controls">
+                <button id="dataset-btn-cifar100" type="button" data-dataset="cifar100">CIFAR-100</button>
+                <button id="dataset-btn-fashion-mnist" type="button" data-dataset="fashion-mnist">Fashion-MNIST</button>
+                <button id="dataset-btn-none" type="button" data-dataset="none" class="btn-stop">Arrêter les 2 trainers</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Graphes live admin (rafraîchissement 5 s)</h2>
+            <div class="compare-grid">
+                <div class="compare-col">
+                    <div class="trainer-badge pytorch">PyTorch</div>
+                    <canvas id="admin-accuracy-chart-pytorch" class="metric-chart" height="170"></canvas>
+                    <canvas id="admin-speed-chart-pytorch" class="metric-chart" height="170"></canvas>
+                    <canvas id="admin-cpu-chart-pytorch" class="metric-chart" height="170"></canvas>
+                    <canvas id="admin-ram-chart-pytorch" class="metric-chart" height="170"></canvas>
+                </div>
+                <div class="compare-col">
+                    <div class="trainer-badge tensorflow">TensorFlow</div>
+                    <canvas id="admin-accuracy-chart-tensorflow" class="metric-chart" height="170"></canvas>
+                    <canvas id="admin-speed-chart-tensorflow" class="metric-chart" height="170"></canvas>
+                    <canvas id="admin-cpu-chart-tensorflow" class="metric-chart" height="170"></canvas>
+                    <canvas id="admin-ram-chart-tensorflow" class="metric-chart" height="170"></canvas>
+                </div>
+            </div>
         </section>
 
         <section class="panel">
@@ -56,7 +77,7 @@
                     </thead>
                     <tbody id="admin-metrics-tbody"></tbody>
                 </table>
-                <p id="admin-empty" class="empty" style="display:none;">Aucune metrique disponible.</p>
+                <p id="admin-empty" class="empty" style="display:none;">Aucune métrique disponible.</p>
             </div>
         </section>
 
@@ -68,13 +89,13 @@
 
         <section class="panel session-card">
             <h2>CGU</h2>
-            <p>1. Les metriques sont reservees au suivi technique interne.</p>
-            <p>2. Les acces admin doivent rester strictement personnels.</p>
-            <p>3. CPU/RAM hote ne sont visibles que pour role admin.</p>
+            <p>1. Les métriques sont réservées au suivi technique interne.</p>
+            <p>2. Les accès admin doivent rester strictement personnels.</p>
+            <p>3. Les CPU/RAM hôte ne sont visibles que pour le rôle admin.</p>
         </section>
     </main>
 
-    <script src="api.js?v=20260331b"></script>
-    <script src="admin.js?v=20260331b"></script>
+    <script src="api.js"></script>
+    <script src="admin.js"></script>
 </body>
 </html>

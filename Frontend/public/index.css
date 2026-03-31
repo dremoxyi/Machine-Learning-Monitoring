@@ -5,7 +5,13 @@
   --headerbackground: #1a1a1a;
 }
 
+html {
+  min-height: 100%;
+  background-color: var(--background);
+}
+
 body {
+  min-height: 100vh;
   background-color: var(--background);
   color: var(--text);
   font-family: Arial, sans-serif;
@@ -23,7 +29,7 @@ main section {
 }
 
 main > section {
-  max-width: 980px;
+  max-width: 1300px;
   margin: 0 auto;
 }
 
@@ -149,8 +155,50 @@ header {
   border-radius: 12px;
   padding: 16px;
   margin: 0 auto 20px;
-  max-width: 900px;
+  max-width: 1260px;
   text-align: center;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.compare-col {
+  min-width: 0;
+}
+
+.trainer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trainer-badge.pytorch {
+  background: #ee4c2c22;
+  color: #ee7a5c;
+  border: 1px solid #ee4c2c55;
+}
+
+.trainer-badge.tensorflow {
+  background: #ff980022;
+  color: #ffb74d;
+  border: 1px solid #ff980055;
+}
+
+@media (max-width: 900px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .small-btn {
@@ -197,6 +245,7 @@ header {
   gap: 10px;
   grid-template-columns: 1fr;
   max-width: 500px;
+  margin: 0 auto;
 }
 
 .form-grid input,

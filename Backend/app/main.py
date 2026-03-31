@@ -465,9 +465,6 @@ def metrics_history(
 
     return {"items": items}
 
-
-# ── Training dataset management ─────────────────────────────────────────────
-
 VALID_DATASETS = ("cifar100", "fashion-mnist", "none")
 
 
