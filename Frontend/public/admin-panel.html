@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="index.css?v=20260331e">
     <title>Admin Panel</title>
 </head>
 <body>
@@ -18,7 +18,7 @@
                 <div class="kpi"><span class="kpi-label">Derniere MAJ</span><span class="kpi-value" id="admin-last-update">-</span></div>
             </div>
 
-            <div class="form-grid" style="max-width:600px;">
+            <div class="form-grid" style="max-width:600px; margin: 0 auto;">
                 <label for="admin-limit">Limite live</label>
                 <input id="admin-limit" type="number" min="1" max="200" value="60">
 
@@ -59,22 +59,9 @@
                 <p id="admin-empty" class="empty" style="display:none;">Aucune metrique disponible.</p>
             </div>
         </section>
-
-        <section class="panel session-card">
-            <h2>Contacts</h2>
-            <p>Email support: support@ml-monitoring.local</p>
-            <p>Email admin technique: admin@cy-tech.fr</p>
-        </section>
-
-        <section class="panel session-card">
-            <h2>CGU</h2>
-            <p>1. Les metriques sont reservees au suivi technique interne.</p>
-            <p>2. Les acces admin doivent rester strictement personnels.</p>
-            <p>3. CPU/RAM hote ne sont visibles que pour role admin.</p>
-        </section>
     </main>
 
-    <script src="api.js?v=20260331b"></script>
-    <script src="admin.js?v=20260331b"></script>
+    <script src="api.js?v=20260331e"></script>
+    <script src="admin.js?v=20260331e"></script>
 </body>
 </html>

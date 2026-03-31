@@ -23,7 +23,7 @@ FILES=(
 
 for file in "${FILES[@]}"; do
   echo "[fashion-mnist] Téléchargement..."
-  curl -fL "${BASE_URL}/${file}" -o "${RAW_DIR}/${file}"
+  curl --retry 5 --retry-delay 2 --retry-all-errors -fL "${BASE_URL}/${file}" -o "${RAW_DIR}/${file}"
 
 done
 

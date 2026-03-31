@@ -22,8 +22,12 @@ services:
   api:
     build: ./Backend
     networks:
-      - backend-net
-      - broker-net
+      backend-net:
+        aliases:
+          - api
+      broker-net:
+        aliases:
+          - api
     expose:
       - "8000"
     environment:
@@ -50,7 +54,9 @@ services:
   users-db:
     image: postgres:15-alpine
     networks:
-      - backend-net
+      backend-net:
+        aliases:
+          - users-db
     expose:
       - "5432"
     environment:
@@ -70,7 +76,9 @@ services:
   metrics-db:
     image: postgres:15-alpine
     networks:
-      - backend-net
+      backend-net:
+        aliases:
+          - metrics-db
     expose:
       - "5432"
     environment:
@@ -90,7 +98,9 @@ services:
   logs-db:
     image: postgres:15-alpine
     networks:
-      - backend-net
+      backend-net:
+        aliases:
+          - logs-db
     expose:
       - "5432"
     environment:
@@ -113,11 +123,11 @@ services:
       - broker-net
     expose:
       - "9092"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
     environment:
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LOG_DIRS=/tmp/kraft-combined-logs
+      - KAFKA_METADATA_LOG_DIR=/tmp/kraft-combined-logs
       - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
@@ -133,7 +143,8 @@ services:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 15
+      start_period: 30s
     restart: unless-stopped
 
   kafka-topic-setup:
@@ -162,7 +173,7 @@ services:
     command:
       - sh
       - -c
-      - apk add --no-cache bash curl tar >/dev/null && bash /scripts/download_cifar100.sh /data/cifar100
+      - apk add --no-cache bash curl tar ca-certificates >/dev/null && cp /scripts/download_cifar100.sh /tmp/download_cifar100.sh && sed -i 's/\r$//' /tmp/download_cifar100.sh && bash /tmp/download_cifar100.sh /data/cifar100
     restart: "no"
 
   dataset-downloader-fashion-mnist:
@@ -175,7 +186,7 @@ services:
     command:
       - sh
       - -c
-      - apk add --no-cache bash curl gzip >/dev/null && bash /scripts/download_fashion_mnist.sh /data/fashion-mnist
+      - apk add --no-cache bash curl gzip ca-certificates >/dev/null && cp /scripts/download_fashion_mnist.sh /tmp/download_fashion_mnist.sh && sed -i 's/\r$//' /tmp/download_fashion_mnist.sh && bash /tmp/download_fashion_mnist.sh /data/fashion-mnist
     restart: "no"
 
   trainer-pytorch:
@@ -249,6 +260,7 @@ networks:
     driver: bridge
   backend-net:
     driver: bridge
+    internal: true
   broker-net:
     driver: bridge
 
@@ -257,4 +269,3 @@ volumes:
   metrics_postgres_data:
   logs_postgres_data:
   datasets:
-  kafka_data:

@@ -9,205 +9,105 @@
 <body>
     <header>
         <div class="header-top-row">
-            <h1 class="titre_gros">LLM & Python Libraries Benchmark</h1>
-            <button class="bouton-connexion" id="connexion" >
-                Connexion
+            <h1 class="titre_gros">ML Monitoring Dashboard</h1>
+            <button class="bouton-connexion" id="connexion">
+                Deconnexion
                 <div class="icon">
-                    <svg
-                        height="24"
-                        width="24"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
+                    <svg height="24" width="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M0 0h24v24H0z" fill="none"></path>
-                        <path
-                            d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z"
-                            fill="currentColor"
-                        ></path>
+                        <path d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z" fill="currentColor"></path>
                     </svg>
                 </div>
             </button>
         </div>
 
         <nav class="nav1">
-            <button id="nav-acceuil">Acceuil</button>
-            <button id="nav-llm-test">Test LLM</button>
-            <button id="nav-lib-test">Test Libraries</button>
-            <button id="nav-compare">Comparaison</button>
-            <button id="nav-history">Historique</button>
+            <button id="nav-precision">Precision du modele</button>
+            <button id="nav-speed">Vitesse d execution</button>
+            <button id="nav-cpu">CPU machine hote</button>
+            <button id="nav-ram">RAM machine hote</button>
+            <button id="nav-contacts">Contacts</button>
+            <button id="nav-cgu">CGU</button>
         </nav>
     </header>
 
     <main>
+        <section id="precision-section">
+            <h2>Precision du modele</h2>
 
-        <section id="acceuil-section">
-            <h2>Acceuil</h2>
-            <div >
-                <h2>Bienvenue à tous</h2>
+            <div class="session-card">
+                <h3>Session</h3>
+                <p>Etat utilisateur: <strong id="user-badge">-</strong></p>
+                <p>Nom et prenom: <strong id="user-fullname">-</strong></p>
+                <p id="global-last-refresh">Dernier rafraichissement: -</p>
+                <a id="admin-link" href="admin.html" class="small-btn" style="display:none;">Ouvrir le panel admin</a>
             </div>
 
-        </section>
-
-
-
-        <section id="llm-test-section" style="display:none;">
-            <h2>Test de LLM</h2>
-            <div id="llm-form">
-                <label for="llm-select">Sélectionner un LLM :</label>
-                <select id="llm-select">
-                    <option value="">-- Choisir --</option>
-                    <option value="gpt-4">GPT-4</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                    <option value="claude-3">Claude 3</option>
-                    <option value="llama-2">LLaMA 2</option>
-                    <option value="mistral">Mistral</option>
-                    <option value="gemini">Gemini</option>
-                </select>
-
-                <label for="llm-prompt">Prompt :</label>
-                <textarea id="llm-prompt" rows="5" placeholder="Entrez votre prompt ici..."></textarea>
-
-                <label for="llm-temperature">Température :</label>
-                <input type="range" id="llm-temperature" min="0" max="2" step="0.1" value="0.7">
-                <span id="llm-temperature-value">0.7</span>
-
-                <label for="llm-max-tokens">Max Tokens :</label>
-                <input type="number" id="llm-max-tokens" min="1" max="4096" value="256">
-
-                <button id="llm-submit">Exécuter le test</button>
-            </div>
-            <div id="llm-results">
-                <h3>Résultats</h3>
-                <div id="llm-output"></div>
-                <div id="llm-metrics"></div>
-            </div>
-        </section>
-
-        <!-- Section Test Libraries Python -->
-        <section id="lib-test-section" style="display:none;">
-            <h2>Test de Bibliothèques Python</h2>
-            <div id="lib-form">
-                <label for="lib-select">Sélectionner une bibliothèque :</label>
-                <select id="lib-select">
-                    <option value="">-- Choisir --</option>
-                    <option value="transformers">Transformers (HuggingFace)</option>
-                    <option value="langchain">LangChain</option>
-                    <option value="openai">OpenAI SDK</option>
-                    <option value="anthropic">Anthropic SDK</option>
-                    <option value="llama-cpp">llama-cpp-python</option>
-                    <option value="sentence-transformers">Sentence Transformers</option>
-                    <option value="chromadb">ChromaDB</option>
-                    <option value="pinecone">Pinecone</option>
-                </select>
-
-                <label for="lib-task">Type de tâche :</label>
-                <select id="lib-task">
-                    <option value="inference">Inférence</option>
-                    <option value="embedding">Embedding</option>
-                    <option value="rag">RAG (Retrieval)</option>
-                    <option value="fine-tuning">Fine-tuning</option>
-                </select>
-
-                <label for="lib-input">Données d'entrée :</label>
-                <textarea id="lib-input" rows="5" placeholder="Entrez vos données ici..."></textarea>
-
-                <label for="lib-iterations">Nombre d'itérations :</label>
-                <input type="number" id="lib-iterations" min="1" max="100" value="10">
-
-                <button id="lib-submit">Exécuter le test</button>
-            </div>
-            <div id="lib-results">
-                <h3>Résultats</h3>
-                <div id="lib-output"></div>
-                <div id="lib-metrics"></div>
-            </div>
-        </section>
-
-        <!-- Section Comparaison -->
-        <section id="compare-section" style="display:none;">
-            <h2>Comparaison</h2>
-            <div id="compare-form">
-                <h3>Sélectionner les éléments à comparer</h3>
-                
-                <div id="compare-llm-selection">
-                    <h4>LLMs</h4>
-                    <label><input type="checkbox" value="gpt-4"> GPT-4</label>
-                    <label><input type="checkbox" value="gpt-3.5-turbo"> GPT-3.5 Turbo</label>
-                    <label><input type="checkbox" value="claude-3"> Claude 3</label>
-                    <label><input type="checkbox" value="llama-2"> LLaMA 2</label>
-                    <label><input type="checkbox" value="mistral"> Mistral</label>
-                    <label><input type="checkbox" value="gemini"> Gemini</label>
+            <div class="panel">
+                <h3>Accuracy (live)</h3>
+                <p id="precision-meta">Chargement...</p>
+                <div class="kpi-grid">
+                    <div class="kpi"><span class="kpi-label">API</span><span class="kpi-value" id="home-status">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Points</span><span class="kpi-value" id="home-count">0</span></div>
+                    <div class="kpi"><span class="kpi-label">Dernier trainer</span><span class="kpi-value" id="home-last-trainer">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Derniere accuracy</span><span class="kpi-value" id="home-last-accuracy">-</span></div>
                 </div>
-
-                <div id="compare-lib-selection">
-                    <h4>Bibliothèques</h4>
-                    <label><input type="checkbox" value="transformers"> Transformers</label>
-                    <label><input type="checkbox" value="langchain"> LangChain</label>
-                    <label><input type="checkbox" value="openai"> OpenAI SDK</label>
-                    <label><input type="checkbox" value="anthropic"> Anthropic SDK</label>
-                </div>
-
-                <label for="compare-prompt">Prompt de test :</label>
-                <textarea id="compare-prompt" rows="3" placeholder="Prompt commun pour la comparaison..."></textarea>
-
-                <label for="compare-metric">Métrique principale :</label>
-                <select id="compare-metric">
-                    <option value="latency">Latence</option>
-                    <option value="throughput">Débit (tokens/sec)</option>
-                    <option value="cost">Coût</option>
-                    <option value="quality">Qualité</option>
-                </select>
-
-                <button id="compare-submit">Lancer la comparaison</button>
-            </div>
-            <div id="compare-results">
-                <h3>Résultats de comparaison</h3>
-                <table id="compare-table">
-                    <thead>
-                        <tr>
-                            <th>Modèle/Lib</th>
-                            <th>Latence (ms)</th>
-                            <th>Tokens/sec</th>
-                            <th>Coût estimé</th>
-                            <th>Score qualité</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <button id="user-refresh-btn" type="button">Rafraichir maintenant</button>
+                <canvas id="precision-chart" class="metric-chart" height="180"></canvas>
             </div>
         </section>
 
-        <!-- Section Historique -->
-        <section id="history-section" style="display:none;">
-            <h2>Historique des tests</h2>
-            <div id="history-filters">
-                <label for="history-type">Type :</label>
-                <select id="history-type">
-                    <option value="all">Tous</option>
-                    <option value="llm">LLM</option>
-                    <option value="library">Bibliothèques</option>
-                    <option value="comparison">Comparaisons</option>
-                </select>
-
-                <label for="history-date-from">Du :</label>
-                <input type="date" id="history-date-from">
-
-                <label for="history-date-to">Au :</label>
-                <input type="date" id="history-date-to">
-
-                <button id="history-filter">Filtrer</button>
-                <button id="history-export">Exporter CSV</button>
+        <section id="speed-section" style="display:none;">
+            <h2>Vitesse d execution</h2>
+            <div class="panel">
+                <p id="speed-meta">Latence moyenne et vitesse de traitement sur les derniers points.</p>
+                <canvas id="speed-chart" class="metric-chart" height="180"></canvas>
+                <div class="kpi-grid">
+                    <div class="kpi"><span class="kpi-label">Latence moyenne (ms)</span><span class="kpi-value" id="speed-latency">-</span></div>
+                    <div class="kpi"><span class="kpi-label">Throughput moyen</span><span class="kpi-value" id="speed-throughput">-</span></div>
+                </div>
             </div>
-            <div id="history-list"></div>
+        </section>
+
+        <section id="cpu-section" style="display:none;">
+            <h2>Utilisation CPU machine hote</h2>
+            <div class="panel">
+                <p id="cpu-access-msg">Chargement...</p>
+                <canvas id="cpu-chart" class="metric-chart" height="180"></canvas>
+            </div>
+        </section>
+
+        <section id="ram-section" style="display:none;">
+            <h2>Utilisation RAM machine hote</h2>
+            <div class="panel">
+                <p id="ram-access-msg">Chargement...</p>
+                <canvas id="ram-chart" class="metric-chart" height="180"></canvas>
+            </div>
+        </section>
+
+        <section id="contacts-section" style="display:none;">
+            <div class="panel session-card">
+                <h2>Contacts</h2>
+                <p>Delétoile Lilian</p>
+                <p>Girotti Thomas</p>
+                <p>Shemann Hugo</p>
+                <p>Email support: deletoilel@cy-tech.fr</p>
+                <p>Admin technique: girottitho@cy-tech.fr</p>
+            </div>
+        </section>
+
+        <section id="cgu-section" style="display:none;">
+            <div class="panel session-card">
+                <h2>CGU</h2>
+                <p>1. Cette application est reservee au suivi technique des entrainements.</p>
+                <p>2. Les donnees de performance sont collectees a des fins de monitoring interne.</p>
+                <p>3. Les comptes utilisateurs ne doivent pas etre partages.</p>
+                <p>4. L acces aux metriques CPU/RAM est strictement reserve aux admins.</p>
+            </div>
         </section>
     </main>
 
-
-
-    <footer>
-    </footer>
-
-    <script src="api.js"></script>
-    <script src="app.js"></script>
+    <script src="api.js?v=20260331d"></script>
+    <script src="app.js?v=20260331d"></script>
 </body>
 </html>

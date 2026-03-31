@@ -31,6 +31,12 @@ def get_jwt_secret() -> str:
     return os.getenv("JWT_SECRET", "quoicoubeh")
 
 
+def build_full_name(firstname: Optional[str], lastname: Optional[str]) -> str:
+    first = (firstname or "").strip()
+    last = (lastname or "").strip()
+    return f"{first} {last}".strip()
+
+
 def to_float(value: object) -> Optional[float]:
     try:
         if value is None:
@@ -50,6 +56,8 @@ def verify_password(password: str, password_hash: str) -> bool:
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
+    firstname: str
+    lastname: str
 
 
 class LoginRequest(BaseModel):
@@ -85,6 +93,36 @@ def log_event(level: str, event: str, message: str, user_email: Optional[str] = 
             conn.commit()
     except Exception as exc:
         print(f"[api] log write failed: {exc}")
+
+
+def ensure_users_schema() -> None:
+    with get_users_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS firstname VARCHAR(100)")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS lastname VARCHAR(100)")
+            cur.execute(
+                """
+                UPDATE users
+                SET firstname = 'Blobi', lastname = 'Le Blob'
+                WHERE email = 'admin@cy-tech.fr'
+                """
+            )
+            cur.execute(
+                """
+                UPDATE users
+                SET firstname = 'Bob', lastname = 'Léponge'
+                WHERE email = 'user@cy-tech.fr'
+                """
+            )
+            cur.execute(
+                """
+                UPDATE users
+                SET
+                    firstname = COALESCE(NULLIF(firstname, ''), split_part(email, '@', 1)),
+                    lastname = COALESCE(lastname, '')
+                """
+            )
+        conn.commit()
 
 
 def persist_metric(metric: dict) -> None:
@@ -154,6 +192,7 @@ def kafka_metrics_consumer_loop() -> None:
 
 @app.on_event("startup")
 def on_startup() -> None:
+    ensure_users_schema()
     threading.Thread(target=kafka_metrics_consumer_loop, daemon=True).start()
 
 
@@ -164,16 +203,21 @@ def health() -> dict:
 
 @app.post("/api/auth/register")
 def register(payload: RegisterRequest) -> dict:
+    firstname = payload.firstname.strip()
+    lastname = payload.lastname.strip()
+    if not firstname or not lastname:
+        raise HTTPException(status_code=400, detail="nom et prenom requis")
+
     try:
         with get_users_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO users (email, password_hash, role)
-                    VALUES (%s, %s, 'client')
-                    RETURNING id, email, role
+                    INSERT INTO users (email, password_hash, role, firstname, lastname)
+                    VALUES (%s, %s, 'client', %s, %s)
+                    RETURNING id, email, role, firstname, lastname
                     """,
-                    (payload.email, hash_password(payload.password)),
+                    (payload.email, hash_password(payload.password), firstname, lastname),
                 )
                 user = cur.fetchone()
             conn.commit()
@@ -186,7 +230,14 @@ def register(payload: RegisterRequest) -> dict:
 
     log_event("info", "auth.register.success", "inscription reussie", payload.email)
 
-    return {"id": user[0], "email": user[1], "role": user[2]}
+    return {
+        "id": user[0],
+        "email": user[1],
+        "role": user[2],
+        "firstname": user[3],
+        "lastname": user[4],
+        "full_name": build_full_name(user[3], user[4]),
+    }
 
 
 @app.post("/api/auth/login")
@@ -196,7 +247,7 @@ def login(payload: LoginRequest) -> dict:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT id, email, password_hash, role
+                    SELECT id, email, password_hash, role, firstname, lastname
                     FROM users
                     WHERE email = %s
                     """,
@@ -211,13 +262,19 @@ def login(payload: LoginRequest) -> dict:
         log_event("warn", "auth.login.failed", "identifiants invalides", payload.email)
         raise HTTPException(status_code=401, detail="identifiants invalides")
 
-    user_id, email, password_hash, role = row
+    user_id, email, password_hash, role, firstname, lastname = row
     if not verify_password(payload.password, password_hash):
         log_event("warn", "auth.login.failed", "identifiants invalides", payload.email)
         raise HTTPException(status_code=401, detail="identifiants invalides")
 
     token = jwt.encode(
-        {"userId": user_id, "email": email, "role": role},
+        {
+            "userId": user_id,
+            "email": email,
+            "role": role,
+            "firstname": firstname,
+            "lastname": lastname,
+        },
         get_jwt_secret(),
         algorithm="HS256",
     )
@@ -227,16 +284,48 @@ def login(payload: LoginRequest) -> dict:
     return {
         "token": token,
         "role": role,
-        "user": {"id": user_id, "email": email, "role": role},
+        "user": {
+            "id": user_id,
+            "email": email,
+            "role": role,
+            "firstname": firstname,
+            "lastname": lastname,
+            "full_name": build_full_name(firstname, lastname),
+        },
     }
 
 
 @app.get("/api/me")
 def me(user: dict = Depends(get_current_user)) -> dict:
+    user_id = user.get("userId")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalide")
+
+    try:
+        with get_users_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, email, role, firstname, lastname
+                    FROM users
+                    WHERE id = %s
+                    """,
+                    (user_id,),
+                )
+                row = cur.fetchone()
+    except Exception:
+        raise HTTPException(status_code=500, detail="erreur serveur") from None
+
+    if row is None:
+        raise HTTPException(status_code=404, detail="utilisateur introuvable")
+
     return {
-        "id": user.get("userId"),
-        "email": user.get("email"),
-        "role": user.get("role"),
+        "id": row[0],
+        "email": row[1],
+        "role": row[2],
+        "firstname": row[3],
+        "lastname": row[4],
+        "full_name": build_full_name(row[3], row[4]),
     }
 
 

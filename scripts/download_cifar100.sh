@@ -16,7 +16,7 @@ if [[ -f "${EXTRACT_DIR}/cifar-100-python/train" ]]; then
 fi
 
 echo "[cifar100] Téléchargement..."
-curl -fL "${DATASET_URL}" -o "${ARCHIVE_PATH}"
+curl --retry 5 --retry-delay 2 --retry-all-errors -fL "${DATASET_URL}" -o "${ARCHIVE_PATH}"
 
 echo "[cifar100] Extraction..."
 tar -xzf "${ARCHIVE_PATH}" -C "${EXTRACT_DIR}"

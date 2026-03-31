@@ -1,46 +1,62 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const lastnameInput = document.getElementById('register-lastname');
+    const firstnameInput = document.getElementById('register-firstname');
     const emailInput = document.getElementById('register-email');
     const passwordInput = document.getElementById('register-password');
     const submitButton = document.getElementById('register-submit');
+    const form = document.getElementById('register-form');
+    const client = typeof ApiClient !== 'undefined'
+        ? ApiClient
+        : {
+            request: async (url, options = {}) => {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.detail || data?.message || 'Erreur API');
+                }
+                return data;
+            }
+        };
 
-    if (!emailInput || !passwordInput || !submitButton) {
+    if (!lastnameInput || !firstnameInput || !emailInput || !passwordInput || !submitButton) {
         console.error('Elements du formulaire d\'inscription manquants');
         return;
     }
 
-    submitButton.addEventListener('click', async (e) => {
+    async function onRegister(e) {
         e.preventDefault();
 
+        const lastname = lastnameInput.value.trim();
+        const firstname = firstnameInput.value.trim();
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
-        const role = 'client';
 
-        if (!email || !password) {
+        if (!lastname || !firstname || !email || !password) {
             alert('Veuillez remplir tous les champs');
             return;
         }
 
+        submitButton.disabled = true;
+        submitButton.textContent = 'Creation...';
+
         try {
-            const response = await fetch('/api/auth/register', {
+            await client.request('/api/auth/register', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email, password, role })
+                body: JSON.stringify({ email, password, firstname, lastname })
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                alert(data.message || 'Erreur d\'inscription');
-                return;
-            }
 
             alert('Compte cree avec succes, connectez-vous.');
             window.location.href = 'connexion.html';
         } catch (error) {
             console.error('Register error:', error);
-            alert('Erreur de connexion, veuillez reessayer plus tard');
+            alert(error.message || 'Erreur de connexion, veuillez reessayer plus tard');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Creer le compte';
         }
-    });
+    }
+
+    if (form) {
+        form.addEventListener('submit', onRegister);
+    }
 });
