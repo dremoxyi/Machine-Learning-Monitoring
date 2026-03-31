@@ -9,10 +9,13 @@ import bcrypt
 import jwt
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, KafkaProducer
 from pydantic import BaseModel, EmailStr
 
 app = FastAPI(title="ML Monitoring API")
+
+_active_dataset: str = "cifar100"
+_kafka_control_producer: Optional[KafkaProducer] = None
 
 
 def get_users_db_connection() -> psycopg.Connection:
@@ -52,6 +55,10 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+
+class TrainingDatasetRequest(BaseModel):
+    dataset: str
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -190,10 +197,27 @@ def kafka_metrics_consumer_loop() -> None:
             time.sleep(3)
 
 
+def kafka_control_producer_init_loop() -> None:
+    global _kafka_control_producer
+    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+    while True:
+        try:
+            _kafka_control_producer = KafkaProducer(
+                bootstrap_servers=bootstrap_servers,
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            )
+            print(f"[api] Kafka control producer connecte sur {bootstrap_servers}")
+            return
+        except Exception as exc:
+            print(f"[api] Kafka control producer indisponible ({exc}), retry dans 3s")
+            time.sleep(3)
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     ensure_users_schema()
     threading.Thread(target=kafka_metrics_consumer_loop, daemon=True).start()
+    threading.Thread(target=kafka_control_producer_init_loop, daemon=True).start()
 
 
 @app.get("/api/health")
@@ -440,3 +464,34 @@ def metrics_history(
         items.append(metric)
 
     return {"items": items}
+
+
+# ── Training dataset management ─────────────────────────────────────────────
+
+VALID_DATASETS = ("cifar100", "fashion-mnist", "none")
+
+
+@app.get("/api/admin/trainers/states")
+def get_trainer_states(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    return {"dataset": _active_dataset}
+
+
+@app.post("/api/admin/training/dataset")
+def set_training_dataset(
+    payload: TrainingDatasetRequest,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    global _active_dataset
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    if payload.dataset not in VALID_DATASETS:
+        raise HTTPException(status_code=400, detail=f"dataset doit etre parmi: {', '.join(VALID_DATASETS)}")
+    _active_dataset = payload.dataset
+    if _kafka_control_producer is not None:
+        for tname in ("pytorch", "tensorflow"):
+            _kafka_control_producer.send(f"trainer.control.{tname}", value={"dataset": payload.dataset})
+        _kafka_control_producer.flush(timeout=5)
+    log_event("info", "training.dataset.change", f"dataset: {payload.dataset}", user.get("email"))
+    return {"dataset": payload.dataset}

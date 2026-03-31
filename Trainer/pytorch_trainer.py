@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 import json
 import pickle
@@ -13,7 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 import psutil
-from kafka import KafkaProducer
+from kafka import KafkaConsumer, KafkaProducer
 
 trainer_name = os.environ.get("TRAINER_NAME", "pytorch")
 run_id = str(uuid.uuid4())
@@ -34,6 +35,9 @@ device = torch.device("cpu")
 
 np.random.seed(train_seed)
 torch.manual_seed(train_seed)
+
+_active_dataset: str = ""
+_dataset_lock = threading.Lock()
 
 
 def load_idx_images(file_path: Path) -> np.ndarray:
@@ -157,6 +161,31 @@ def build_metrics_payload(dataset_name: str, latency_ms: float, throughput: floa
     }
 
 
+def control_consumer_loop() -> None:
+    global _active_dataset
+    control_topic = f"trainer.control.{trainer_name}"
+    while True:
+        try:
+            consumer = KafkaConsumer(
+                control_topic,
+                bootstrap_servers=bootstrap_servers,
+                auto_offset_reset="latest",
+                enable_auto_commit=True,
+                group_id=f"control-{trainer_name}",
+                value_deserializer=lambda raw: json.loads(raw.decode("utf-8")),
+            )
+            print(f"[{trainer_name}] Control consumer connecte sur {control_topic}")
+            for message in consumer:
+                if isinstance(message.value, dict):
+                    new_dataset = message.value.get("dataset", "none")
+                    with _dataset_lock:
+                        _active_dataset = new_dataset
+                    print(f"[{trainer_name}] Dataset recu: {new_dataset}")
+        except Exception as exc:
+            print(f"[{trainer_name}] Control consumer erreur: {exc}")
+            time.sleep(3)
+
+
 print(
     f"[{trainer_name}] Demarrage producer kafka vers {bootstrap_servers}, "
     f"topic={topic}, datasets={dataset_names}, batch_size={batch_size}, "
@@ -188,12 +217,30 @@ while producer is None:
         print(f"[{trainer_name}] Kafka indisponible ({exc}), retry dans 3s")
         time.sleep(3)
 
-dataset_index = 0
-active_dataset_names = list(dataset_states.keys())
+threading.Thread(target=control_consumer_loop, daemon=True).start()
+
+with _dataset_lock:
+    _active_dataset = list(dataset_states.keys())[0]
+
+previous_dataset = ""
 
 while True:
-    dataset_name = active_dataset_names[dataset_index % len(active_dataset_names)]
-    dataset_index += 1
+    with _dataset_lock:
+        commanded_dataset = _active_dataset
+
+    if commanded_dataset == "none" or commanded_dataset not in dataset_states:
+        if previous_dataset != "none":
+            print(f"[{trainer_name}] Entrainement arrete")
+        previous_dataset = "none"
+        time.sleep(2)
+        continue
+
+    if previous_dataset != commanded_dataset:
+        run_id = str(uuid.uuid4())
+        print(f"[{trainer_name}] Dataset: {commanded_dataset}, run_id={run_id}")
+    previous_dataset = commanded_dataset
+
+    dataset_name = commanded_dataset
     state = dataset_states[dataset_name]
     x_batch, y_batch = take_batch(state, batch_size)
 
